@@ -1,15 +1,18 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import React from 'react'
 
-const CkButton = ({onPress, text, backgroundColor}) => {
+const CkButton = ({onPress, text, backgroundColor, disabled}) => {
   return (
-    <TouchableOpacity onPress={onPress} style={{marginBottom: 10,width:'100%', paddingVertical: 10, flexDirection:'row', backgroundColor: backgroundColor, padding:10, justifyContent: 'center', borderRadius: 4, alignItems:'center', }}>
+    <TouchableOpacity disabled={disabled} onPress={onPress} style={{marginBottom: 0,width:'100%', paddingVertical: 10, flexDirection:'row', backgroundColor: backgroundColor, padding:10, justifyContent: 'center', borderRadius: 4, alignItems:'center', }}>
  
-      <Text>{text}</Text>
+      <Text style={{  color: 'white',
+    fontWeight: '700', }}>{text}</Text>
     </TouchableOpacity>
   )
 }
 
 export default CkButton
 
-const styles = StyleSheet.create({})
+const styles = StyleSheet.create({
+  
+})

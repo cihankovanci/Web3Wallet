@@ -1,24 +1,25 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, TextInput, View } from 'react-native'
 import React from 'react'
 import CopyButton from '../Buttons/CopyButton'
-
-const CkCard = ({text, backgroundColor, title}) => {
+import CkButton from './CkButton'
+const CkTextInputButton = ({text, setText, backgroundColor, title, onSign}) => {
   return (
     <View style={{backgroundColor:backgroundColor, marginBottom: 10,width:'100%', paddingVertical: 10, flexDirection:'row', backgroundColor: backgroundColor, padding:10, borderRadius: 4, alignItems:'center',  }}>
         <View  style={{flex:4, flexDirection:'column', }}>
         <Text style={{fontSize: 16, fontWeight: '600'}}>{title}</Text>
         <View style={{ backgroundColor: 'white', padding: 5, borderRadius: 3}}>  
-        <Text style={{color: 'black'}}>{text}</Text>
+    
+        <TextInput style={{color: 'black'}}  value={text} onChangeText={setText} />
         </View>
         </View>
         <View style={{flex: 1, justifyContent: 'center', alignItems: 'center',  marginLeft: 10}}>
-        <CopyButton textToCopy={text}/>
+        <CkButton backgroundColor={backgroundColor} onPress={onSign} text={'Sign'} />
         
         </View>
     </View>
   )
 }
 
-export default CkCard
+export default CkTextInputButton
 
 const styles = StyleSheet.create({})

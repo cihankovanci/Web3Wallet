@@ -11,7 +11,7 @@ const CopyButton = ({textToCopy}) => {
 
   return (
     <TouchableOpacity onPress={handleCopy}>
-      <Text>Copy</Text>
+      <Text style={{color:'white', fontWeight: '700'}}>Copy</Text>
     </TouchableOpacity>
   )
 }

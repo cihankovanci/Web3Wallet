@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Button, SafeAreaView, TouchableOpacity } from 'react-native'
+import { StyleSheet, Text, View, Button, SafeAreaView, TouchableOpacity, ScrollView, TextInput } from 'react-native'
 import React, {useEffect, useState} from 'react'
 import useInitialization from './src/hooks/useInitialization';
 import {
@@ -12,7 +12,7 @@ import {goerli, bscTestnet} from 'viem/chains';
 import { http } from 'viem';
 import { RequestModal } from './src/components/RequestModal';
 const projectId = 'a51c11453355128de6ffdff24866af5e';
-
+import Clipboard from '@react-native-clipboard/clipboard';
 import { ethers } from 'ethers';
 import {web3Provider} from '@ethersproject/providers';
 import {numberToHex, sanitizeHex} from '@walletconnect/encoding';
@@ -21,6 +21,11 @@ import SwitchButton from './src/components/Buttons/SwitchButton';
 import CkButton from './src/components/Buttons/CkButton';
 import CopyButton from './src/components/Buttons/CopyButton';
 import CkCard from './src/components/Views/CkCard';
+import InfoCard from './src/components/Views/InfoCard';
+import CkTextInputButton from './src/components/Buttons/CkTextInputButton';
+import { signMessage } from 'viem/_types/actions/wallet/signMessage';
+import TransactionCard from './src/components/Views/TransactionCard';
+
 
 const App = () => {
   const {isConnected, provider, open, address} = useWalletConnectModal();
@@ -35,9 +40,12 @@ const App = () => {
   const [hashh, setHashh] = useState();
   const [transferHash, setTransferHash] = useState();
   const [myAddress, setMyAddress] = useState();
-
-
+  const [signedMessage, setSignedMessage] = useState('');
+  const [mainTransaction, setMainTransaction] = useState('');
+  const [receiverTransaction, setReceiverTransaction] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
+  const [transactionAmount, setTransactionAmount] = useState(0);
+  const [disabled, setDisabled] = useState(false);
   const toggleSwitch = () => setIsEnabled(previousState => !previousState);
 
   useEffect(() => {
@@ -113,8 +121,8 @@ const App = () => {
      setMyAddress(address)
      const hash = await client.sendTransaction({
        account: address,
-       to: '0xBA02934d2DD50445Fd08E975eDE02CA6C609d4db', // cihan eth chain vitalik.eth
-       value: parseEther('0.0000001'),
+       to: receiverTransaction, //'0xBA02934d2DD50445Fd08E975eDE02CA6C609d4db', // cihan eth chain vitalik.eth
+       value: parseEther(transactionAmount),
      });
      setTransferHash(hash);
      return {
@@ -122,14 +130,15 @@ const App = () => {
        response: hash,
      };
    };
+
    console.log('Transfer hash:',transferHash)
 
-  const onSignMessage = async () => {
+  const onSignMessage = async (text) => {
     const [address] = await client.getAddresses();
 
     const signature = await client.signMessage({
       account: address,
-      message: 'Hello World!',
+      message: text,
     });
 
     console.log('signature',signature);
@@ -354,76 +363,135 @@ const App = () => {
     };
   }
 
+  const fetchCopiedText = async () => {
+    const text = await Clipboard.getString();
+    setReceiverTransaction(text);
+  };
+
+  useEffect(() => {
+    if(receiverTransaction && mainTransaction && transactionAmount){
+      setDisabled(false)
+    } else {
+      setDisabled(true)
+    }
+
+
+  }, [receiverTransaction,mainTransaction,transactionAmount])
+
+
   return (
     <SafeAreaView>
     <View style={styles.container}>
+      <ScrollView style={{width:'100%',  }}>
       <Text>App</Text>
 
 
 
-      <View style={{width:'50%'}}>
+      {/* <View style={{width:'50%'}}>
       <SwitchButton isEnabled={isConnected} toggleSwitch={onConnect} backgroundColor={isConnected ? '#3396FF' : '#999'} />
-      </View>
-
-      <View style={{width: '50%'}}>
-      <CkButton text={"Test"} onPress={()=>{}} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
-      </View>
-
-      <View style={{width: '100%'}}>
-        <CkCard title={'Wallet address'} text={address} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
-      </View>
-
-
-
-
-      <Text></Text>
-      <View>
-        <Text>{client?.chain.name}</Text>
-        <Text>{client?.chain.nativeCurrency.name} {client?.chain.nativeCurrency.symbol}</Text>
-        <Text>{client?.chain.network}</Text>
-
-      </View>
-
-
-      <Text style={{color:'red'}}>wallet address: {walletAddress}</Text>
-      {/* <Text>0x5c83F38FECcCB5745DEd87F4A17281C7640b47Fb</Text> */}
-      <Text>Wallet signature: {walletSignature}</Text>
-      <TouchableOpacity style={styles.button} onPress={onConnect}>
+      </View> */}
+       {/* <TouchableOpacity style={styles.button} onPress={onConnect}>
           <Text style={styles.buttonText}>
             {isConnected ? 'Disconnect' : 'Connect'}
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
+        
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={isConnected ? 'Disconnect' : 'Connect'} onPress={onConnect} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', paddingHorizontal: 30, alignItems: 'center'}}>
+       
+       <InfoCard textData={client} backgroundColor={isConnected ? '#3396FF' : '#999'} />
+      </View>
+
+      <View style={{width: '100%', paddingHorizontal: 30}}>
+        <CkCard title={'Wallet address'} text={address} buttonType={'Copy'} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', paddingHorizontal: 30, }}>
+        <CkTextInputButton onSign={() => onAction(onSignMessage(signedMessage))} title={'Sign Message'} text={signedMessage} buttonType={'Copy'} backgroundColor={isConnected ? '#3396FF' : '#999'} setText={setSignedMessage}/>
+      </View>
+
+      <View style={{width: '100%', paddingHorizontal: 30}}>
+        <CkCard title={'Wallet Signature'} text={walletSignature}  backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+      
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Read Contract'} onPress={onAction(onReadContract)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+            <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30,   }}>
+              <View style={{flexDirection:'column', backgroundColor:'powderblue', padding: 10, borderRadius: 10}}>
+            <TransactionCard title={'Sender Address'} buttonText={'Get Address'} mainText={mainTransaction} setMainText={setMainTransaction} onPaste={() => setMainTransaction(address)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+            <TransactionCard title={'Receiver Address'} buttonText={'Paste'} mainText={receiverTransaction} setMainText={setReceiverTransaction} onPaste={fetchCopiedText} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+            <View style={{ backgroundColor: 'white', padding: 5, borderRadius: 3}}>  
+          
+          <TextInput style={{color: 'black'}} keyboardType='numeric' value={transactionAmount} onChangeText={setTransactionAmount} />
+
+          </View>
+            
+            <View style={{justifyContent:'center', alignItems:'center'}}>
+            <CkButton disabled={disabled} text={'Send Transaction'} onPress={onAction(onSendTransaction)} backgroundColor={isConnected && !disabled ? '#3396FF' : '#999'}/>
+            </View>
+          </View>
+            </View>
+{transferHash &&
+            <View style={{width: '100%', paddingHorizontal: 30}}>
+        <CkCard title={'Transfer Hash'} text={transferHash}  backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>}
+
+          
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Get Wallet Balance'} onPress={onAction(walletBalance)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Get BalanceOf'} onPress={onAction(onBalanceOf)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+
+
+      {/* <Text>Wallet signature: {walletSignature}</Text> */}
+      {/* <TouchableOpacity style={styles.button} onPress={onConnect}>
+          <Text style={styles.buttonText}>
+            {isConnected ? 'Disconnect' : 'Connect'}
+          </Text>
+        </TouchableOpacity> */}
        {/* <TouchableOpacity
           style={[styles.button, !isConnected && styles.buttonDisabled]}
           disabled={!isConnected}
           onPress={onAction(onSendTransaction)}>
           <Text style={styles.buttonText}>Send Transaction</Text>
         </TouchableOpacity> */}
-         <TouchableOpacity
+
+         {/* <TouchableOpacity
           style={[styles.button, !isConnected && styles.buttonDisabled]}
           disabled={!isConnected}
           onPress={getWalletAddress}>
           <Text style={styles.buttonText}>Get walletAddress</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TouchableOpacity> */}
+        {/* <TouchableOpacity
           style={[styles.button, !isConnected && styles.buttonDisabled]}
           disabled={!isConnected}
           onPress={onAction(onSignMessage)}>
           <Text style={styles.buttonText}>Sign Message</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TouchableOpacity> */}
+        {/* <TouchableOpacity
           style={[styles.button, !isConnected && styles.buttonDisabled]}
           disabled={!isConnected}
           onPress={onAction(onReadContract)}>
           <Text style={styles.buttonText}>Read Contract</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TouchableOpacity> */}
+        {/* <TouchableOpacity
           style={[styles.button, !isConnected && styles.buttonDisabled]}
           disabled={!isConnected}
           onPress={onAction(onSendTransaction)}>
           <Text style={styles.buttonText}>Send Transaction</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+        </TouchableOpacity> */}
+        {/* <TouchableOpacity
           style={[styles.button, !isConnected && styles.buttonDisabled]}
           disabled={!isConnected}
           onPress={onAction(onWriteContract)}>
@@ -446,8 +514,8 @@ const App = () => {
           disabled={!isConnected}
           onPress={onAction(onEstimateGas)}>
           <Text style={styles.buttonText}>on Transaction Count</Text>
-        </TouchableOpacity>
-    
+        </TouchableOpacity> */}
+    </ScrollView>
     </View>
       <WalletConnectModal
       projectId={ConfigUtils.PROJECT_ID}
