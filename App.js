@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View, Button, SafeAreaView, TouchableOpacity, ScrollView, TextInput } from 'react-native'
+import { StyleSheet, Text, View, Button, SafeAreaView, TouchableOpacity, ScrollView,Platform, TextInput, FlatList, KeyboardAvoidingView } from 'react-native'
 import React, {useEffect, useState} from 'react'
 import useInitialization from './src/hooks/useInitialization';
 import {
@@ -8,7 +8,7 @@ import {
 import ConfigUtils from './src/utils/ConfigUtils';
 import ContractUtils from './src/utils/ContractUtils';
 import {createPublicClient, createWalletClient, custom, formatEther, parseEther} from 'viem';
-import {goerli, bscTestnet} from 'viem/chains';
+import {goerli, bscTestnet, mainnet, bsc, avalanche} from 'viem/chains';
 import { http } from 'viem';
 import { RequestModal } from './src/components/RequestModal';
 const projectId = 'a51c11453355128de6ffdff24866af5e';
@@ -25,6 +25,9 @@ import InfoCard from './src/components/Views/InfoCard';
 import CkTextInputButton from './src/components/Buttons/CkTextInputButton';
 import { signMessage } from 'viem/_types/actions/wallet/signMessage';
 import TransactionCard from './src/components/Views/TransactionCard';
+import BlockInfo from './src/components/Views/BlockInfo';
+import List from './src/components/Views/List';
+import { ComplexAnimationBuilder } from 'react-native-reanimated';
 
 
 const App = () => {
@@ -46,18 +49,25 @@ const App = () => {
   const [isEnabled, setIsEnabled] = useState(false);
   const [transactionAmount, setTransactionAmount] = useState(0);
   const [disabled, setDisabled] = useState(false);
+  const [blockResponse, setBlockResponse] = useState();
+  const [blockText, setBlockText] = useState('');
+  const [blockNumbers, setBlockNumbers] = useState([]);
+  const [blockNumber, setBlockNumber] = useState(0);
+  const [transferinfo, setTransferinfo] = useState('');
   const toggleSwitch = () => setIsEnabled(previousState => !previousState);
 
   useEffect(() => {
     if (isConnected && provider) {
       
       const _client = createWalletClient({
-        chain: bscTestnet,
+        // chain: bscTestnet,
+        chain: bsc,
         transport: custom(provider),
       });
   
       const _publicClient = createPublicClient({
-        chain: bscTestnet,
+        // chain: bscTestnet,
+        chain: bsc,
         transport: custom(provider),
       });
   
@@ -125,6 +135,7 @@ const App = () => {
        value: parseEther(transactionAmount),
      });
      setTransferHash(hash);
+     setTransferinfo(hash);
      return {
        method: 'send transaction',
        response: hash,
@@ -175,7 +186,7 @@ const App = () => {
     };
   };
 
-// console.log(client)
+
 // console.log('pubbb',publicClient)
   // const getBalance = async () => {
   //   const [account] = await client.getAddresses();
@@ -274,8 +285,10 @@ const App = () => {
     const bal = await publicClient.getBalance({
       address: account,
     });
-    const calculatedBalance = bal*10**-18;
-    console.log('wei balance',bal);
+
+
+    const calculatedBalance = formatEther(bal);
+    console.log('wei balance',calculatedBalance);
 
 
     return {
@@ -287,13 +300,38 @@ const App = () => {
 
   const onGetBlock = async () => {
     const block = await publicClient.getBlock({
-      blockNumber: 2,
+      blockNumber: blockText,
     });
-    console.log(block)
+    // console.log('Block baba',block)
+    setBlockResponse(block)
     return {
       method: 'get block',
       response: block,
     };
+  }
+
+  const onGetBlockNumber = async () => {
+    const block = await publicClient.getBlockNumber();
+
+    console.log('Block baba',block)
+    setBlockNumber(block.toString())
+    return {
+      method: 'get block Number',
+      response: block,
+    };
+  }
+
+  const addBlockNumber = (blockNumber) => {
+    setBlockNumbers((prevBlockNumbers) => [...prevBlockNumbers, blockNumber]);
+  };
+
+  const onWatchBlockNumber = async () => {
+    const unwatch = publicClient.watchBlockNumber( 
+     { onBlockNumber: (blockNumber) => addBlockNumber(blockNumber) }
+    );
+
+  
+    console.log('unWatch',unwatch)
   }
 
   const onGetChainId = async () => {
@@ -338,7 +376,7 @@ const App = () => {
 
   const onValidSignature = async () => {
     const [account] = await client.getAddresses();
-    console.log(account)
+    console.log('ACCOUNT: ',account)
     const validSignature = await publicClient.verifyMessage({
       address: account,
       message: 'Hello World!',
@@ -354,7 +392,7 @@ const App = () => {
   const onGetTransaction = async () => { 
     const [account] = await client.getAddresses();
     const transaction = await publicClient.getTransaction({
-      hash: '0x1e1431ca2def8c0367110e57da85c913968527fcbc5ded14909f369098575e63' // get transaction info about given hash
+      hash: transferinfo//'0x1e1431ca2def8c0367110e57da85c913968527fcbc5ded14909f369098575e63' // get transaction info about given hash
     });
     console.log('transaction',transaction)
     return {
@@ -378,9 +416,47 @@ const App = () => {
 
   }, [receiverTransaction,mainTransaction,transactionAmount])
 
+  const onWatchAsset = async () => {
+    const success = await client.watchAsset({ 
+      type: 'BEP20',
+      options: {
+        address: '0x3ee2200efb3400fabb9aacf31297cbdd1d435d47',
+        decimals: 18,
+        symbol: 'ADA',
+      },
+    })
+
+    console.log('success',success)
+    return {
+      method: 'Watch Assets for ADA',
+      response: success,
+    };
+  }
+
+  const addChain = async () => {
+    const newChain = await client.addChain({chain: avalanche})
+ 
+    console.log('newChain',newChain)
+     return {
+       method: 'Switch Chain',
+       response: newChain,
+     };
+   }
+
+   
+  const switchChain = async () => {
+   const newChain = await client.switchChain({id: avalanche.id})
+
+   console.log('newChain',newChain)
+    return {
+      method: 'Switch Chain',
+      response: newChain,
+    };
+  }
 
   return (
     <SafeAreaView>
+<KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
     <View style={styles.container}>
       <ScrollView style={{width:'100%',  }}>
       <Text>App</Text>
@@ -401,6 +477,18 @@ const App = () => {
       <CkButton text={isConnected ? 'Disconnect' : 'Connect'} onPress={onConnect} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
       </View>
 
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Watch asset'} onPress={onAction(onWatchAsset)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Add Chain '} onPress={onAction(addChain)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Switch Chain '} onPress={onAction(switchChain)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
       <View style={{width: '100%', paddingHorizontal: 30, alignItems: 'center'}}>
        
        <InfoCard textData={client} backgroundColor={isConnected ? '#3396FF' : '#999'} />
@@ -411,7 +499,7 @@ const App = () => {
       </View>
 
       <View style={{width: '100%', paddingHorizontal: 30, }}>
-        <CkTextInputButton onSign={() => onAction(onSignMessage(signedMessage))} title={'Sign Message'} text={signedMessage} buttonType={'Copy'} backgroundColor={isConnected ? '#3396FF' : '#999'} setText={setSignedMessage}/>
+        <CkTextInputButton buttonText={'Sign'}  onSign={() => onAction(onSignMessage(signedMessage))} title={'Sign Message'} text={signedMessage} buttonType={'Copy'} backgroundColor={isConnected ? '#3396FF' : '#999'} setText={setSignedMessage}/>
       </View>
 
       <View style={{width: '100%', paddingHorizontal: 30}}>
@@ -442,6 +530,10 @@ const App = () => {
         <CkCard title={'Transfer Hash'} text={transferHash}  backgroundColor={isConnected ? '#3396FF' : '#999'}/>
       </View>}
 
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30,  }}>
+        <CkTextInputButton title={'Search Block Number for info'} text={transferHash} setText={setTransferinfo} buttonText={'Get Transaction info'}  onSign={onAction(onGetTransaction)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      {/* <CkButton text={'Get Block'} onPress={onAction(onGetBlock)} backgroundColor={isConnected ? '#3396FF' : '#999'}/> */}
+      </View>
           
 
       <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
@@ -452,7 +544,42 @@ const App = () => {
       <CkButton text={'Get BalanceOf'} onPress={onAction(onBalanceOf)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
       </View>
 
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Transaction Count'} onPress={onAction(onTransactionCount)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
 
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Get Chain Id'} onPress={onAction(onGetChainId)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+   
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+      <CkButton text={'Watch Block Numbers'} onPress={onWatchBlockNumber} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30  }}>
+        <List data={blockNumbers} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30,  }}>
+        <CkTextInputButton title={'Latest Block Number'} text={blockNumber} setText={setBlockNumber} buttonText={'Get   Block number'}  onSign={onAction(onGetBlockNumber)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      {/* <CkButton text={'Get Block'} onPress={onAction(onGetBlock)} backgroundColor={isConnected ? '#3396FF' : '#999'}/> */}
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30,  }}>
+        <CkTextInputButton title={'Search Block Number for info'} text={blockText} setText={setBlockText} buttonText={'Get Block info'}  onSign={onAction(onGetBlock)} backgroundColor={isConnected ? '#3396FF' : '#999'}/>
+      {/* <CkButton text={'Get Block'} onPress={onAction(onGetBlock)} backgroundColor={isConnected ? '#3396FF' : '#999'}/> */}
+      </View>
+
+      <View style={{width: '100%', marginBottom: 10,alignItems:'center',  paddingHorizontal: 30,  }}>
+      <BlockInfo backgroundColor={isConnected ? '#3396FF' : '#999'} blockData={blockResponse}/>
+      </View>
+
+    
+
+
+   
 
       {/* <Text>Wallet signature: {walletSignature}</Text> */}
       {/* <TouchableOpacity style={styles.button} onPress={onConnect}>
@@ -517,6 +644,7 @@ const App = () => {
         </TouchableOpacity> */}
     </ScrollView>
     </View>
+    </KeyboardAvoidingView>
       <WalletConnectModal
       projectId={ConfigUtils.PROJECT_ID}
       providerMetadata={ConfigUtils.providerMetadata}
